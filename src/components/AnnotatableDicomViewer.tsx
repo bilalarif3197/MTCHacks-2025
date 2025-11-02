@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import * as cornerstone from "cornerstone-core";
 import * as cornerstoneWADOImageLoader from "cornerstone-wado-image-loader";
 import * as dicomParser from "dicom-parser";
-import { Loader2, MapPin, MessageSquare, Trash2, Edit } from "lucide-react";
+import { Loader2, MapPin, MessageSquare, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -40,6 +40,7 @@ export const AnnotatableDicomViewer = ({
 
   // Annotation state
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [drawingMode, setDrawingMode] = useState(false);
   const [showCommentDialog, setShowCommentDialog] = useState(false);
   const [pendingAnnotation, setPendingAnnotation] = useState<Annotation | null>(null);
   const [commentText, setCommentText] = useState("");
@@ -87,18 +88,47 @@ export const AnnotatableDicomViewer = ({
     };
   }, [imageId]);
 
+  // Draw single annotation helper
+  const drawSingleAnnotation = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      annotation: Annotation,
+      canvasWidth: number,
+      canvasHeight: number
+    ) => {
+      if (!annotation.x || !annotation.y) return;
+
+      const x = annotation.x * canvasWidth;
+      const y = annotation.y * canvasHeight;
+
+      // Draw pin/marker
+      ctx.fillStyle = annotation.color || "rgba(220, 38, 38, 0.9)";
+      ctx.beginPath();
+      ctx.arc(x, y, 6, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Draw white border
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Draw comment indicator if there's a comment
+      if (annotation.comment) {
+        ctx.fillStyle = "rgba(220, 38, 38, 0.9)";
+        ctx.beginPath();
+        ctx.arc(x + 10, y - 10, 8, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.fillStyle = "white";
+        ctx.font = "bold 10px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("i", x + 10, y - 7);
+      }
+    },
+    []
+  );
+
   // Draw annotations
-  useEffect(() => {
-    if (!imageLoaded || !canvasRef.current || !elementRef.current) return;
-
-    const timer = setTimeout(() => {
-      drawAnnotations();
-    }, 50);
-
-    return () => clearTimeout(timer);
-  }, [annotations, imageLoaded]);
-
-  const drawAnnotations = () => {
+  const drawAnnotations = useCallback(() => {
     const canvas = canvasRef.current;
     const element = elementRef.current;
     if (!canvas || !element) return;
@@ -116,44 +146,19 @@ export const AnnotatableDicomViewer = ({
     annotations.forEach((annotation) => {
       drawSingleAnnotation(ctx, annotation, canvas.width, canvas.height);
     });
-  };
+  }, [annotations, drawSingleAnnotation]);
 
-  const drawSingleAnnotation = (
-    ctx: CanvasRenderingContext2D,
-    annotation: Annotation,
-    canvasWidth: number,
-    canvasHeight: number
-  ) => {
-    if (!annotation.x || !annotation.y) return;
+  useEffect(() => {
+    if (!imageLoaded || !canvasRef.current || !elementRef.current) return;
 
-    const x = annotation.x * canvasWidth;
-    const y = annotation.y * canvasHeight;
+    const timer = setTimeout(() => {
+      drawAnnotations();
+    }, 50);
 
-    // Draw pin/marker
-    ctx.fillStyle = annotation.color || "rgba(220, 38, 38, 0.9)";
-    ctx.beginPath();
-    ctx.arc(x, y, 6, 0, 2 * Math.PI);
-    ctx.fill();
+    return () => clearTimeout(timer);
+  }, [annotations, imageLoaded, drawAnnotations]);
 
-    // Draw white border
-    ctx.strokeStyle = "white";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Draw comment indicator if there's a comment
-    if (annotation.comment) {
-      ctx.fillStyle = "rgba(220, 38, 38, 0.9)";
-      ctx.beginPath();
-      ctx.arc(x + 10, y - 10, 8, 0, 2 * Math.PI);
-      ctx.fill();
-      ctx.fillStyle = "white";
-      ctx.font = "bold 10px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("i", x + 10, y - 7);
-    }
-  };
-
-  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!drawingMode || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
@@ -161,46 +166,18 @@ export const AnnotatableDicomViewer = ({
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
 
-    setIsDrawing(true);
-    setCurrentAnnotation({
+    // Create a point annotation
+    const newAnnotation: Annotation = {
       id: Date.now().toString(),
-      type: drawingMode,
+      type: "point",
       x,
       y,
-      width: 0,
-      height: 0,
       comment: "",
-      color: "rgba(220, 38, 38, 0.8)",
-    });
-  };
+      color: "rgba(220, 38, 38, 0.9)",
+    };
 
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !currentAnnotation || !canvasRef.current) return;
-
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const currentX = (e.clientX - rect.left) / rect.width;
-    const currentY = (e.clientY - rect.top) / rect.height;
-
-    setCurrentAnnotation({
-      ...currentAnnotation,
-      width: currentX - (currentAnnotation.x || 0),
-      height: currentY - (currentAnnotation.y || 0),
-    });
-  };
-
-  const handleCanvasMouseUp = () => {
-    if (!isDrawing || !currentAnnotation) return;
-
-    setIsDrawing(false);
-
-    // Only save if annotation has meaningful size
-    if (Math.abs(currentAnnotation.width || 0) > 0.02 && Math.abs(currentAnnotation.height || 0) > 0.02) {
-      setPendingAnnotation(currentAnnotation as Annotation);
-      setShowCommentDialog(true);
-    }
-
-    setCurrentAnnotation(null);
+    setPendingAnnotation(newAnnotation);
+    setShowCommentDialog(true);
   };
 
   const handleSaveComment = () => {
@@ -231,23 +208,20 @@ export const AnnotatableDicomViewer = ({
     <div className={`space-y-3 ${className}`}>
       {/* Toolbar */}
       {imageLoaded && (
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <Button
-            variant={drawingMode === "circle" ? "default" : "outline"}
+            variant={drawingMode ? "default" : "outline"}
             size="sm"
-            onClick={() => setDrawingMode(drawingMode === "circle" ? null : "circle")}
+            onClick={() => setDrawingMode(!drawingMode)}
           >
-            <Circle className="h-4 w-4 mr-1" />
-            Circle
+            <MapPin className="h-4 w-4 mr-1" />
+            {drawingMode ? "Click to Add Note" : "Add Annotation"}
           </Button>
-          <Button
-            variant={drawingMode === "rectangle" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setDrawingMode(drawingMode === "rectangle" ? null : "rectangle")}
-          >
-            <Square className="h-4 w-4 mr-1" />
-            Rectangle
-          </Button>
+          {drawingMode && (
+            <span className="text-xs text-muted-foreground">
+              Click anywhere on the image to place a note
+            </span>
+          )}
         </div>
       )}
 
@@ -267,10 +241,7 @@ export const AnnotatableDicomViewer = ({
             cursor: drawingMode ? "crosshair" : "default",
             zIndex: 10,
           }}
-          onMouseDown={handleCanvasMouseDown}
-          onMouseMove={handleCanvasMouseMove}
-          onMouseUp={handleCanvasMouseUp}
-          onMouseLeave={() => setIsDrawing(false)}
+          onClick={handleCanvasClick}
         />
 
         {loading && (
@@ -328,11 +299,11 @@ export const AnnotatableDicomViewer = ({
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Comment (optional)</label>
-              <Input
+              <Textarea
                 placeholder="Enter your observation or note..."
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSaveComment()}
+                rows={3}
               />
             </div>
           </div>
