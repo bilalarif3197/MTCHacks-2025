@@ -8,12 +8,23 @@ import { Loader2 } from "lucide-react";
 cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
 cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
 
+export interface HeatmapRegion {
+  x: number;
+  y: number;
+  radius: number;
+  intensity: number;
+  label?: string;
+  explanation?: string;
+}
+
 interface DicomViewerWithOverlayProps {
   imageId?: string;
   className?: string;
   onImageLoaded?: () => void;
   showHeatmap?: boolean;
   heatmapIntensity?: number; // 0-1 scale, based on AI confidence
+  heatmapRegions?: HeatmapRegion[]; // Custom regions with explanations
+  onRegionHover?: (region: HeatmapRegion | null) => void;
 }
 
 export const DicomViewerWithOverlay = ({
@@ -22,12 +33,15 @@ export const DicomViewerWithOverlay = ({
   onImageLoaded,
   showHeatmap = false,
   heatmapIntensity = 0,
+  heatmapRegions,
+  onRegionHover,
 }: DicomViewerWithOverlayProps) => {
   const elementRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [hoveredRegion, setHoveredRegion] = useState<HeatmapRegion | null>(null);
 
   useEffect(() => {
     const element = elementRef.current;
@@ -112,8 +126,8 @@ export const DicomViewerWithOverlay = ({
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Create gradient heatmap based on confidence
-    const regions = generateHeatmapRegions(heatmapIntensity);
+    // Use custom regions if provided, otherwise generate based on intensity
+    const regions = heatmapRegions || generateHeatmapRegions(heatmapIntensity);
 
     regions.forEach((region) => {
       const gradient = ctx.createRadialGradient(
@@ -135,10 +149,11 @@ export const DicomViewerWithOverlay = ({
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     });
 
-    // Draw highlighting boxes
+    // Draw highlighting boxes with labels
     regions.forEach((region) => {
-      ctx.strokeStyle = `rgba(255, 0, 0, ${region.intensity})`;
-      ctx.lineWidth = 3;
+      const isHovered = hoveredRegion === region;
+      ctx.strokeStyle = `rgba(255, 0, 0, ${isHovered ? 1 : region.intensity})`;
+      ctx.lineWidth = isHovered ? 4 : 3;
       ctx.setLineDash([5, 5]);
 
       const boxSize = region.radius * Math.min(canvas.width, canvas.height) * 1.5;
@@ -146,9 +161,50 @@ export const DicomViewerWithOverlay = ({
       const y = region.y * canvas.height - boxSize / 2;
 
       ctx.strokeRect(x, y, boxSize, boxSize);
+
+      // Draw label if provided
+      if (region.label) {
+        ctx.font = "bold 12px system-ui";
+        ctx.fillStyle = isHovered ? "rgba(255, 0, 0, 1)" : "rgba(255, 0, 0, 0.9)";
+        ctx.fillText(region.label, x + 5, y + 15);
+      }
     });
 
     console.log("Heatmap drawn successfully with", regions.length, "regions");
+  };
+
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !heatmapRegions) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+
+    // Find if mouse is over any region
+    const regions = heatmapRegions;
+    let foundRegion: HeatmapRegion | null = null;
+
+    for (const region of regions) {
+      const dx = x - region.x;
+      const dy = y - region.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < region.radius) {
+        foundRegion = region;
+        break;
+      }
+    }
+
+    if (foundRegion !== hoveredRegion) {
+      setHoveredRegion(foundRegion);
+      onRegionHover?.(foundRegion);
+    }
+  };
+
+  const handleCanvasMouseLeave = () => {
+    setHoveredRegion(null);
+    onRegionHover?.(null);
   };
 
   return (
@@ -162,12 +218,26 @@ export const DicomViewerWithOverlay = ({
       {/* Heatmap overlay canvas */}
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 pointer-events-none rounded-lg"
+        className="absolute inset-0 rounded-lg"
         style={{
           display: showHeatmap && imageLoaded ? "block" : "none",
-          zIndex: 10
+          zIndex: 10,
+          cursor: heatmapRegions && heatmapRegions.length > 0 ? "pointer" : "default"
         }}
+        onMouseMove={handleCanvasMouseMove}
+        onMouseLeave={handleCanvasMouseLeave}
       />
+
+      {/* Tooltip for hovered region */}
+      {hoveredRegion && hoveredRegion.explanation && (
+        <div className="absolute bottom-4 left-4 right-4 bg-accent/95 border-2 border-accent text-white p-3 rounded-lg shadow-lg z-40 animate-fade-in">
+          <div className="font-semibold text-sm mb-1">{hoveredRegion.label}</div>
+          <div className="text-xs opacity-90">{hoveredRegion.explanation}</div>
+          <div className="text-xs opacity-75 mt-1">
+            Confidence: {(hoveredRegion.intensity * 100).toFixed(1)}%
+          </div>
+        </div>
+      )}
 
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/50 rounded-lg z-20">
@@ -197,17 +267,12 @@ export const DicomViewerWithOverlay = ({
 };
 
 // Generate simulated heatmap regions based on AI confidence
-function generateHeatmapRegions(intensity: number): Array<{
-  x: number;
-  y: number;
-  radius: number;
-  intensity: number;
-}> {
+function generateHeatmapRegions(intensity: number): HeatmapRegion[] {
   if (intensity < 0.3) return []; // Low confidence, no highlights
 
   // Simulate 1-2 regions of interest based on confidence
   const numRegions = intensity > 0.7 ? 2 : 1;
-  const regions = [];
+  const regions: HeatmapRegion[] = [];
 
   for (let i = 0; i < numRegions; i++) {
     regions.push({
@@ -215,6 +280,8 @@ function generateHeatmapRegions(intensity: number): Array<{
       y: 0.4 + i * 0.2,
       radius: 0.2 + intensity * 0.1, // Size based on confidence
       intensity: intensity,
+      label: `Region ${i + 1}`,
+      explanation: `AI detected potential finding with ${(intensity * 100).toFixed(0)}% confidence`
     });
   }
 

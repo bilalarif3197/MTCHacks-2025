@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import * as cornerstone from "cornerstone-core";
 import * as cornerstoneWADOImageLoader from "cornerstone-wado-image-loader";
 import * as dicomParser from "dicom-parser";
-import { Loader2, Circle, Square, MessageSquare, Trash2 } from "lucide-react";
+import { Loader2, MapPin, MessageSquare, Trash2, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
@@ -14,11 +14,9 @@ cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
 
 export interface Annotation {
   id: string;
-  type: "circle" | "rectangle";
+  type: "point";
   x: number; // Normalized 0-1
   y: number;
-  width: number;
-  height: number;
   comment: string;
   color: string;
 }
@@ -42,9 +40,6 @@ export const AnnotatableDicomViewer = ({
 
   // Annotation state
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [drawingMode, setDrawingMode] = useState<"circle" | "rectangle" | null>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [currentAnnotation, setCurrentAnnotation] = useState<Partial<Annotation> | null>(null);
   const [showCommentDialog, setShowCommentDialog] = useState(false);
   const [pendingAnnotation, setPendingAnnotation] = useState<Annotation | null>(null);
   const [commentText, setCommentText] = useState("");
@@ -101,7 +96,7 @@ export const AnnotatableDicomViewer = ({
     }, 50);
 
     return () => clearTimeout(timer);
-  }, [annotations, currentAnnotation, imageLoaded]);
+  }, [annotations, imageLoaded]);
 
   const drawAnnotations = () => {
     const canvas = canvasRef.current;
@@ -121,48 +116,40 @@ export const AnnotatableDicomViewer = ({
     annotations.forEach((annotation) => {
       drawSingleAnnotation(ctx, annotation, canvas.width, canvas.height);
     });
-
-    // Draw current annotation being drawn
-    if (currentAnnotation && currentAnnotation.x !== undefined) {
-      drawSingleAnnotation(ctx, currentAnnotation as Annotation, canvas.width, canvas.height);
-    }
   };
 
   const drawSingleAnnotation = (
     ctx: CanvasRenderingContext2D,
-    annotation: Partial<Annotation>,
+    annotation: Annotation,
     canvasWidth: number,
     canvasHeight: number
   ) => {
-    if (!annotation.x || !annotation.y || !annotation.width || !annotation.height) return;
+    if (!annotation.x || !annotation.y) return;
 
     const x = annotation.x * canvasWidth;
     const y = annotation.y * canvasHeight;
-    const width = annotation.width * canvasWidth;
-    const height = annotation.height * canvasHeight;
 
-    ctx.strokeStyle = annotation.color || "rgba(220, 38, 38, 0.8)";
+    // Draw pin/marker
+    ctx.fillStyle = annotation.color || "rgba(220, 38, 38, 0.9)";
+    ctx.beginPath();
+    ctx.arc(x, y, 6, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Draw white border
+    ctx.strokeStyle = "white";
     ctx.lineWidth = 2;
-    ctx.setLineDash([5, 3]);
+    ctx.stroke();
 
-    if (annotation.type === "circle") {
-      ctx.beginPath();
-      ctx.ellipse(x + width / 2, y + height / 2, Math.abs(width / 2), Math.abs(height / 2), 0, 0, 2 * Math.PI);
-      ctx.stroke();
-    } else if (annotation.type === "rectangle") {
-      ctx.strokeRect(x, y, width, height);
-    }
-
-    // Draw comment indicator
+    // Draw comment indicator if there's a comment
     if (annotation.comment) {
       ctx.fillStyle = "rgba(220, 38, 38, 0.9)";
       ctx.beginPath();
-      ctx.arc(x + width, y, 8, 0, 2 * Math.PI);
+      ctx.arc(x + 10, y - 10, 8, 0, 2 * Math.PI);
       ctx.fill();
       ctx.fillStyle = "white";
       ctx.font = "bold 10px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("i", x + width, y + 3);
+      ctx.fillText("i", x + 10, y - 7);
     }
   };
 

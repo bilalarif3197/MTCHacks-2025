@@ -6,6 +6,12 @@ Provides REST endpoints for DICOM analysis using Hoppr AI
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from hoppr_model import HopprModelInterface
+from pathology_utils import (
+    detect_pathology_from_filename,
+    get_model_for_pathology,
+    get_all_pathologies,
+    PATHOLOGY_TO_MODEL
+)
 import os
 import tempfile
 from dotenv import load_dotenv
@@ -36,12 +42,15 @@ def analyze_dicom():
     """
     Analyze a DICOM image using Hoppr AI
 
+    If no model_id is specified, runs inference with ALL available models
+    and returns the result with the highest confidence score.
+
     Expects:
         - DICOM file in request.files['dicom']
-        - Optional model_id in request.form
+        - Optional model_id in request.form (if omitted, tries all models)
 
     Returns:
-        JSON with analysis results
+        JSON with analysis results from the best-matching model
     """
     try:
         # Check if file is present
@@ -59,26 +68,75 @@ def analyze_dicom():
                 'error': 'Empty filename'
             }), 400
 
-        # Get optional model_id
-        model_id = request.form.get('model_id', 'mc_chestradiography_atelectasis:v1.20250828')
-
         # Save file temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix='.dcm') as temp_file:
             dicom_file.save(temp_file.name)
             temp_path = temp_file.name
 
         try:
-            # Analyze with Hoppr AI
-            print(f"Analyzing DICOM file: {dicom_file.filename}")
-            results = hoppr_model.analyze_dicom_image(
-                dicom_file_path=temp_path,
-                model_id=model_id
-            )
+            # Check if specific model was requested
+            model_id = request.form.get('model_id')
 
-            # Add filename to results
-            results['filename'] = dicom_file.filename
+            if model_id:
+                # Use specific model
+                print(f"Analyzing with specified model: {model_id}")
+                results = hoppr_model.analyze_dicom_image(
+                    dicom_file_path=temp_path,
+                    model_id=model_id
+                )
+                results['filename'] = dicom_file.filename
+                return jsonify(results)
 
-            return jsonify(results)
+            # No specific model - try all models and return best match
+            print(f"Analyzing DICOM file with all models: {dicom_file.filename}")
+            print("=" * 50)
+
+            all_results = []
+            pathologies = get_all_pathologies()
+
+            for pathology in pathologies:
+                model_id = PATHOLOGY_TO_MODEL[pathology]
+                print(f"Testing {pathology}...")
+
+                result = hoppr_model.analyze_dicom_image(
+                    dicom_file_path=temp_path,
+                    model_id=model_id
+                )
+
+                if result.get('success'):
+                    score = result.get('results', {}).get('response', {}).get('score', 0)
+                    print(f"  → {pathology}: {score:.3f}")
+                    all_results.append({
+                        'pathology': pathology,
+                        'score': score,
+                        'result': result
+                    })
+                else:
+                    print(f"  → {pathology}: FAILED")
+
+            if not all_results:
+                return jsonify({
+                    'success': False,
+                    'error': 'All models failed to analyze the image'
+                }), 500
+
+            # Sort by score and get the best match
+            all_results.sort(key=lambda x: x['score'], reverse=True)
+            best_match = all_results[0]
+
+            print("=" * 50)
+            print(f"Best match: {best_match['pathology']} ({best_match['score']:.3f})")
+            print("=" * 50)
+
+            # Add metadata about other findings
+            best_result = best_match['result']
+            best_result['filename'] = dicom_file.filename
+            best_result['all_scores'] = {
+                r['pathology']: r['score']
+                for r in all_results[:5]  # Top 5 matches
+            }
+
+            return jsonify(best_result)
 
         finally:
             # Clean up temporary file
@@ -87,6 +145,8 @@ def analyze_dicom():
 
     except Exception as e:
         print(f"Error analyzing DICOM: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': str(e)

@@ -2,12 +2,158 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Download, Send, CheckCircle2, Layers } from "lucide-react";
+import { Download, Send, CheckCircle2, Layers, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { DicomViewer } from "@/components/DicomViewer";
-import { DicomViewerWithOverlay } from "@/components/DicomViewerWithOverlay";
+import { DicomViewerWithOverlay, type HeatmapRegion } from "@/components/DicomViewerWithOverlay";
 import { AnnotatableDicomViewer, type Annotation } from "@/components/AnnotatableDicomViewer";
 import { DicomUploader } from "@/components/DicomUploader";
+
+// Pathology descriptions for various chest radiography findings
+const PATHOLOGY_INFO: Record<string, {
+  fullName: string;
+  description: string;
+  secondaryFindings?: string[];
+}> = {
+  atelectasis: {
+    fullName: "Atelectasis",
+    description: "Collapse or closure of lung tissue detected. This finding shows characteristic opacity consistent with atelectasis, often caused by airway obstruction, compression, or post-surgical changes.",
+    secondaryFindings: [
+      "Adjacent tissue changes observed. May indicate volume loss or compensatory hyperinflation in neighboring lung segments.",
+      "Mild mediastinal shift noted, consistent with volume loss in affected region."
+    ]
+  },
+  pneumothorax: {
+    fullName: "Pneumothorax",
+    description: "Air accumulation detected in pleural space. Visible absence of lung markings with potential visceral pleural line, indicating separation of lung from chest wall.",
+    secondaryFindings: [
+      "Lung edge visualization suggests partial lung collapse.",
+      "Possible tension signs: mediastinal shift or diaphragm depression may be present."
+    ]
+  },
+  cardiomegaly: {
+    fullName: "Cardiomegaly",
+    description: "Enlarged cardiac silhouette detected. Cardiothoracic ratio appears increased, suggesting possible cardiac chamber enlargement or pericardial effusion.",
+    secondaryFindings: [
+      "Vascular congestion patterns may indicate associated heart failure.",
+      "Pulmonary vascular redistribution suggestive of elevated pulmonary venous pressure."
+    ]
+  },
+  lung_opacity: {
+    fullName: "Lung Opacity",
+    description: "Abnormal opacity detected in lung parenchyma. This finding may represent consolidation, infiltrate, mass, or other pathological process requiring clinical correlation.",
+    secondaryFindings: [
+      "Air bronchograms may be present, suggesting alveolar filling process.",
+      "Pattern suggests possible infectious, inflammatory, or neoplastic etiology."
+    ]
+  },
+  pleural_effusion: {
+    fullName: "Pleural Effusion",
+    description: "Fluid accumulation detected in pleural space. Characteristic blunting of costophrenic angle or meniscus sign indicates pleural fluid collection.",
+    secondaryFindings: [
+      "Compressive atelectasis may be present in adjacent lung tissue.",
+      "Layering pattern suggests free-flowing pleural fluid."
+    ]
+  },
+  consolidation: {
+    fullName: "Consolidation",
+    description: "Dense airspace opacity detected consistent with alveolar consolidation. Pattern suggests filling of alveolar spaces with fluid, pus, blood, or cells.",
+    secondaryFindings: [
+      "Air bronchograms visible within consolidated region.",
+      "Lobar or segmental distribution pattern noted."
+    ]
+  },
+  infiltration: {
+    fullName: "Infiltration",
+    description: "Pulmonary infiltrate detected showing increased interstitial or alveolar markings. Pattern may represent infection, inflammation, or other pathological process.",
+    secondaryFindings: [
+      "Bilateral distribution suggests diffuse process.",
+      "Reticular or nodular pattern indicates interstitial involvement."
+    ]
+  },
+  pleural_thickening: {
+    fullName: "Pleural Thickening",
+    description: "Abnormal pleural thickening detected. Findings consistent with chronic pleural changes, possibly from prior inflammation, infection, or asbestos exposure.",
+    secondaryFindings: [
+      "Localized pleural irregularity noted.",
+      "May represent sequelae of prior empyema or hemothorax."
+    ]
+  },
+  aortic_enlargement: {
+    fullName: "Aortic Enlargement",
+    description: "Widened aortic contour detected. Finding suggests possible aortic aneurysm, atherosclerotic changes, or other vascular abnormality requiring further evaluation.",
+    secondaryFindings: [
+      "Aortic calcification may be present.",
+      "Mediastinal widening consistent with vascular enlargement."
+    ]
+  },
+  calcification: {
+    fullName: "Calcification",
+    description: "Calcified density detected within lung parenchyma or associated structures. May represent granuloma from prior infection, healed tuberculosis, or other benign processes.",
+    secondaryFindings: [
+      "Multiple calcified nodules suggest prior granulomatous disease.",
+      "Pattern consistent with old healed infection."
+    ]
+  },
+  pulmonary_fibrosis: {
+    fullName: "Pulmonary Fibrosis",
+    description: "Interstitial changes consistent with pulmonary fibrosis detected. Reticular pattern and volume loss suggest chronic scarring of lung tissue.",
+    secondaryFindings: [
+      "Honeycombing pattern may indicate advanced fibrotic changes.",
+      "Bilateral lower lobe predominance noted, typical of usual interstitial pneumonia pattern."
+    ]
+  },
+  normal: {
+    fullName: "Normal",
+    description: "No significant abnormalities detected. Lung fields appear clear with normal cardiac silhouette, mediastinal contours, and bony structures.",
+    secondaryFindings: []
+  }
+};
+
+// Generate heatmap regions based on AI model response
+function generateRegionsFromAIResponse(
+  aiResponse: any
+): HeatmapRegion[] {
+  const score = aiResponse.results?.response?.score || 0;
+  const modelId = aiResponse.model_id || aiResponse.results?.response?.model || "";
+
+  // Extract pathology type from model ID (e.g., "mc_chestradiography_atelectasis:v1.20250828" -> "atelectasis")
+  const pathologyMatch = modelId.match(/chestradiography_([a-z_]+)/i);
+  const pathologyKey = pathologyMatch
+    ? pathologyMatch[1].toLowerCase()
+    : "lung_opacity";
+
+  const pathologyInfo = PATHOLOGY_INFO[pathologyKey] || PATHOLOGY_INFO["lung_opacity"];
+
+  // Only generate regions if confidence is above threshold
+  if (score < 0.3) return [];
+
+  const regions: HeatmapRegion[] = [];
+
+  // Primary finding
+  regions.push({
+    x: 0.35,
+    y: 0.4,
+    radius: 0.25,
+    intensity: score,
+    label: pathologyInfo.fullName,
+    explanation: pathologyInfo.description
+  });
+
+  // Add secondary finding if confidence is high and secondary findings exist
+  if (score > 0.7 && pathologyInfo.secondaryFindings && pathologyInfo.secondaryFindings.length > 0) {
+    regions.push({
+      x: 0.6,
+      y: 0.55,
+      radius: 0.2,
+      intensity: score * 0.8,
+      label: "Secondary Finding",
+      explanation: pathologyInfo.secondaryFindings[0]
+    });
+  }
+
+  return regions;
+}
 
 export const Demo = () => {
   const [viewMode, setViewMode] = useState<"sideBySide" | "combined">("sideBySide");
@@ -17,6 +163,8 @@ export const Demo = () => {
   const [aiResults, setAiResults] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [heatmapRegions, setHeatmapRegions] = useState<HeatmapRegion[]>([]);
+  const [hoveredRegion, setHoveredRegion] = useState<HeatmapRegion | null>(null);
 
   const handleDownload = () => {
     toast.success("Report downloaded • PDF generated", {
@@ -79,6 +227,30 @@ export const Demo = () => {
     }
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.dcm')) {
+      toast.error("Invalid file type", {
+        description: "Please upload a DICOM (.dcm) file",
+      });
+      return;
+    }
+
+    setDicomFile(file);
+    const imageId = `wadouri:${URL.createObjectURL(file)}`;
+    setDicomImageId(imageId);
+
+    toast.success("DICOM file loaded", {
+      description: file.name,
+    });
+
+    // Reset the input so the same file can be uploaded again if needed
+    event.target.value = '';
+  };
+
   const handleAnalyzeWithAI = async () => {
     if (!dicomFile) {
       toast.error("No image to analyze", {
@@ -90,12 +262,18 @@ export const Demo = () => {
     setIsAnalyzing(true);
     setAiResults(null);
 
+    // Show analyzing toast
+    toast.info("Analyzing with AI models...", {
+      description: "Testing all pathology models to find best match",
+      duration: 5000,
+    });
+
     try {
       // Create FormData to send the DICOM file
       const formData = new FormData();
       formData.append('dicom', dicomFile);
 
-      // Call the API
+      // Call the API (without model_id to test all models)
       const response = await fetch('http://localhost:5001/api/analyze', {
         method: 'POST',
         body: formData,
@@ -105,8 +283,20 @@ export const Demo = () => {
 
       if (data.success) {
         setAiResults(data);
+
+        // Generate heatmap regions with explanations based on AI results
+        const regions = generateRegionsFromAIResponse(data);
+        setHeatmapRegions(regions);
+
+        const score = data.results.response.score;
+        const modelId = data.model_id || data.results?.response?.model || "";
+        const pathologyMatch = modelId.match(/chestradiography_([a-z_]+)/i);
+        const pathologyName = pathologyMatch
+          ? PATHOLOGY_INFO[pathologyMatch[1].toLowerCase()]?.fullName || "Finding"
+          : "Finding";
+
         toast.success("AI Analysis Complete", {
-          description: `Confidence: ${(data.results.response.score * 100).toFixed(1)}%`,
+          description: `${pathologyName} detected - Confidence: ${(score * 100).toFixed(1)}%`,
         });
       } else {
         toast.error("Analysis failed", {
@@ -169,9 +359,26 @@ export const Demo = () => {
                           </div>
                           <div className="space-y-2">
                             <p className="text-sm text-muted-foreground">No image loaded</p>
-                            <Button onClick={handleLoadSample} variant="default" size="sm">
-                              Load Sample Image
-                            </Button>
+                            <div className="flex gap-2 justify-center">
+                              <Button onClick={handleLoadSample} variant="default" size="sm">
+                                Load Sample
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => document.getElementById('dicom-upload')?.click()}
+                              >
+                                <Upload className="h-4 w-4 mr-2" />
+                                Upload DICOM
+                              </Button>
+                            </div>
+                            <input
+                              id="dicom-upload"
+                              type="file"
+                              accept=".dcm"
+                              onChange={handleFileUpload}
+                              className="hidden"
+                            />
                           </div>
                         </div>
                       </div>
@@ -266,7 +473,13 @@ export const Demo = () => {
                                 {(aiResults.results.response.score * 100).toFixed(1)}%
                               </div>
                               <p className="text-xs text-muted-foreground">
-                                Atelectasis
+                                {(() => {
+                                  const modelId = aiResults.model_id || aiResults.results?.response?.model || "";
+                                  const pathologyMatch = modelId.match(/chestradiography_([a-z_]+)/i);
+                                  return pathologyMatch
+                                    ? PATHOLOGY_INFO[pathologyMatch[1].toLowerCase()]?.fullName || "Finding"
+                                    : "Finding";
+                                })()}
                               </p>
                             </div>
                             <Button
@@ -285,35 +498,74 @@ export const Demo = () => {
                             className="w-full h-full"
                             showHeatmap={true}
                             heatmapIntensity={aiResults.results.response.score}
+                            heatmapRegions={heatmapRegions}
+                            onRegionHover={setHoveredRegion}
                           />
                         </div>
                       </div>
                     )}
 
-                    <ul className="space-y-2 text-sm">
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-accent mt-0.5" />
-                        <span className="text-muted-foreground">
-                          {aiResults ? "Analysis complete" : "Awaiting analysis"}
-                        </span>
-                      </li>
-                      {aiResults && (
-                        <>
-                          <li className="flex items-start gap-2">
-                            <CheckCircle2 className="h-4 w-4 text-accent mt-0.5" />
-                            <span className="text-muted-foreground">
-                              Model: {aiResults.results.response.model.split(':')[0]}
-                            </span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <CheckCircle2 className="h-4 w-4 text-accent mt-0.5" />
-                            <span className="text-muted-foreground">
-                              Study ID: {aiResults.study_id.substring(0, 8)}...
-                            </span>
-                          </li>
-                        </>
-                      )}
-                    </ul>
+                    {/* AI Findings List */}
+                    {aiResults && heatmapRegions.length > 0 ? (
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-foreground">AI Findings</h4>
+                        <div className="space-y-2">
+                          {heatmapRegions.map((region, idx) => (
+                            <div
+                              key={idx}
+                              className={`p-3 rounded-lg border transition-all cursor-pointer ${
+                                hoveredRegion === region
+                                  ? "bg-accent/20 border-accent shadow-md"
+                                  : "bg-muted/50 border-border hover:border-accent/50"
+                              }`}
+                              onMouseEnter={() => setHoveredRegion(region)}
+                              onMouseLeave={() => setHoveredRegion(null)}
+                            >
+                              <div className="flex items-start justify-between mb-1">
+                                <span className="text-sm font-medium text-foreground">{region.label}</span>
+                                <Badge variant="secondary" className="text-xs">
+                                  {(region.intensity * 100).toFixed(0)}%
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                {region.explanation}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="text-xs text-muted-foreground pt-2 border-t border-border">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-3 w-3" />
+                            <span>Hover over findings to highlight on image</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <ul className="space-y-2 text-sm">
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-accent mt-0.5" />
+                          <span className="text-muted-foreground">
+                            {aiResults ? "Analysis complete" : "Awaiting analysis"}
+                          </span>
+                        </li>
+                        {aiResults && (
+                          <>
+                            <li className="flex items-start gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-accent mt-0.5" />
+                              <span className="text-muted-foreground">
+                                Model: {aiResults.results.response.model.split(':')[0]}
+                              </span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-accent mt-0.5" />
+                              <span className="text-muted-foreground">
+                                Study ID: {aiResults.study_id.substring(0, 8)}...
+                              </span>
+                            </li>
+                          </>
+                        )}
+                      </ul>
+                    )}
                   </div>
                 </div>
               </TabsContent>
