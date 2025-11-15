@@ -213,12 +213,15 @@ def get_models():
 
 
 if __name__ == '__main__':
+    import os
+    port = int(os.environ.get('PORT', 5001))
+
     print("=" * 50)
-    print("Starting Hoppr AI API Server")
+    print("Starting HOPPR AI API Server")
     print("=" * 50)
-    print(f"API URL: http://localhost:5001")
-    print(f"Health Check: http://localhost:5001/api/health")
-    print(f"Analyze Endpoint: POST http://localhost:5001/api/analyze")
+    print(f"API URL: http://localhost:{port}")
+    print(f"Health Check: http://localhost:{port}/api/health")
+    print(f"Analyze Endpoint: POST http://localhost:{port}/api/analyze")
     print("=" * 50)
 
-    app.run(debug=True, port=5001, host='0.0.0.0')
+    app.run(debug=False, port=port, host='0.0.0.0')

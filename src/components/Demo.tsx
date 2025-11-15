@@ -400,7 +400,8 @@ export const Demo = () => {
       }
 
       // Call the API
-      const response = await fetch('http://localhost:5001/api/analyze', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+      const response = await fetch(`${apiUrl}/api/analyze`, {
         method: 'POST',
         body: formData,
       });
