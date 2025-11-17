@@ -98,34 +98,46 @@ export const AnnotatableDicomViewer = ({
       ctx: CanvasRenderingContext2D,
       annotation: Annotation,
       canvasWidth: number,
-      canvasHeight: number
+      canvasHeight: number,
+      annotationNumber: number
     ) => {
       if (!annotation.x || !annotation.y) return;
 
       const x = annotation.x * canvasWidth;
       const y = annotation.y * canvasHeight;
 
-      // Draw pin/marker
-      ctx.fillStyle = annotation.color || "rgba(220, 38, 38, 0.9)";
+      // Draw pin/marker with larger size for better visibility
+      ctx.fillStyle = annotation.color || "rgba(59, 130, 246, 1)";
       ctx.beginPath();
-      ctx.arc(x, y, 6, 0, 2 * Math.PI);
+      ctx.arc(x, y, 12, 0, 2 * Math.PI);
       ctx.fill();
 
-      // Draw white border
+      // Draw white border for contrast
       ctx.strokeStyle = "white";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.stroke();
+
+      // Draw annotation number in the center
+      ctx.fillStyle = "white";
+      ctx.font = "bold 13px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(annotationNumber.toString(), x, y);
 
       // Draw comment indicator if there's a comment
       if (annotation.comment) {
-        ctx.fillStyle = "rgba(220, 38, 38, 0.9)";
+        ctx.fillStyle = annotation.color || "rgba(59, 130, 246, 1)";
         ctx.beginPath();
-        ctx.arc(x + 10, y - 10, 8, 0, 2 * Math.PI);
+        ctx.arc(x + 16, y - 16, 8, 0, 2 * Math.PI);
         ctx.fill();
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.stroke();
         ctx.fillStyle = "white";
         ctx.font = "bold 10px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("i", x + 10, y - 7);
+        ctx.textBaseline = "middle";
+        ctx.fillText("i", x + 16, y - 16);
       }
     },
     []
@@ -146,9 +158,9 @@ export const AnnotatableDicomViewer = ({
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw existing annotations
-    annotations.forEach((annotation) => {
-      drawSingleAnnotation(ctx, annotation, canvas.width, canvas.height);
+    // Draw existing annotations with numbers
+    annotations.forEach((annotation, index) => {
+      drawSingleAnnotation(ctx, annotation, canvas.width, canvas.height, index + 1);
     });
   }, [annotations, drawSingleAnnotation]);
 
@@ -177,7 +189,7 @@ export const AnnotatableDicomViewer = ({
       x,
       y,
       comment: "",
-      color: "rgba(220, 38, 38, 0.9)",
+      color: "rgba(59, 130, 246, 1)", // Blue for clinician annotations
     };
 
     setPendingAnnotation(newAnnotation);
@@ -267,13 +279,13 @@ export const AnnotatableDicomViewer = ({
       {/* Annotations List */}
       {annotations.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">Your Annotations ({annotations.length})</p>
+          <p className="text-xs font-medium text-muted-foreground">Clinician Annotations ({annotations.length})</p>
           {annotations.map((annotation, index) => (
-            <div key={annotation.id} className="flex items-start gap-2 p-2 bg-muted/50 rounded text-xs">
-              <MessageSquare className="h-3 w-3 text-destructive mt-0.5 flex-shrink-0" />
+            <div key={annotation.id} className="flex items-start gap-2 p-2 bg-blue-500/10 border border-blue-500/30 rounded text-xs">
+              <div className="w-2 h-2 rounded-full bg-blue-500 mt-1 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-destructive">
-                  Annotation {index + 1} ({annotation.type})
+                <p className="font-medium text-blue-600 dark:text-blue-400">
+                  Annotation {index + 1}
                 </p>
                 {annotation.comment && (
                   <p className="text-muted-foreground truncate">{annotation.comment}</p>

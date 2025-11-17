@@ -257,6 +257,7 @@ export const Demo = () => {
   const [selectedModel, setSelectedModel] = useState<string>('auto');
   const [useParallel, setUseParallel] = useState<boolean>(true);
   const [consensusRegions, setConsensusRegions] = useState<ConsensusRegion[]>([]);
+  const [demoMode, setDemoMode] = useState<boolean>(false);
 
   const toggleConsensus = () => {
     setShowConsensus(!showConsensus);
@@ -365,66 +366,122 @@ export const Demo = () => {
     // Determine analysis mode and description
     const isAutoDetect = selectedModel === 'auto';
 
-    // Show analyzing toast
-    toast.info("Analyzing with AI models...", {
-      description: isAutoDetect
-        ? `Testing all models (${useParallel ? 'parallel - faster' : 'sequential - slower'})`
-        : `Testing ${AVAILABLE_MODELS.find(m => m.key === selectedModel)?.label} - fast`,
-      duration: 5000,
-    });
-
-    try {
-      // Create FormData to send the DICOM file
-      const formData = new FormData();
-      formData.append('dicom', dicomFile);
-
-      // Add model selection if specific model chosen
-      if (!isAutoDetect) {
-        const modelId = `mc_chestradiography_${selectedModel}:v1.20250828`;
-        formData.append('model_id', modelId);
-      } else if (useParallel) {
-        // Use parallel execution for auto-detect
-        formData.append('parallel', 'true');
-      }
-
-      // Call the API
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-      const response = await fetch(`${apiUrl}/api/analyze`, {
-        method: 'POST',
-        body: formData,
+    if (demoMode) {
+      // DEMO MODE: Use mock data
+      toast.info("Demo Mode - Displaying Representative AI Data", {
+        description: isAutoDetect
+          ? "Showing example comprehensive analysis"
+          : `Showing example ${AVAILABLE_MODELS.find(m => m.key === selectedModel)?.label} analysis`,
+        duration: 3000,
       });
 
-      const data = await response.json();
+      // Simulate AI processing delay for realism
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      if (data.success) {
-        setAiResults(data);
+      try {
+        // Generate mock AI results instead of calling API
+        const pathologyKey = selectedModel === 'auto' ? 'atelectasis' : selectedModel;
+        const modelId = `mc_chestradiography_${pathologyKey}:v1.20250828`;
 
-        // Generate heatmap regions with explanations based on AI results
-        const regions = generateRegionsFromAIResponse(data);
+        // Generate realistic confidence score (70-95% range for detected findings)
+        const score = pathologyKey === 'normal' ? 0.15 : 0.70 + Math.random() * 0.25;
+
+        // Create mock AI response matching the expected format
+        const mockData = {
+          success: true,
+          study_id: `demo-study-${Date.now()}`,
+          image_id: `demo-image-${Date.now()}`,
+          model_id: modelId,
+          results: {
+            response: {
+              score: score,
+              model: modelId
+            }
+          }
+        };
+
+        setAiResults(mockData);
+
+        // Generate heatmap regions with explanations based on mock results
+        const regions = generateRegionsFromAIResponse(mockData);
         setHeatmapRegions(regions);
 
-        const score = data.results.response.score;
-        const modelId = data.model_id || data.results?.response?.model || "";
-        const pathologyMatch = modelId.match(/chestradiography_([a-z_]+)/i);
-        const pathologyName = pathologyMatch
-          ? PATHOLOGY_INFO[pathologyMatch[1].toLowerCase()]?.fullName || "Finding"
-          : "Finding";
+        const pathologyName = PATHOLOGY_INFO[pathologyKey]?.fullName || "Finding";
 
-        toast.success("AI Analysis Complete", {
-          description: `${pathologyName} detected - Confidence: ${(score * 100).toFixed(1)}%`,
+        toast.success("Demo Analysis Complete", {
+          description: `${pathologyName} - Representative data shown (Confidence: ${(score * 100).toFixed(1)}%)`,
+          duration: 4000,
         });
-      } else {
-        toast.error("Analysis failed", {
-          description: data.error || "Unknown error",
+      } catch (error) {
+        console.error("Demo mode error:", error);
+        toast.error("Demo error", {
+          description: "Please refresh and try again",
         });
+      } finally {
+        setIsAnalyzing(false);
       }
-    } catch (error) {
-      console.error("Failed to analyze:", error);
-      toast.error("Failed to connect to AI service", {
-        description: "Please ensure the API server is running",
+    } else {
+      // REAL MODE: Call actual API
+      toast.info("Analyzing with AI models...", {
+        description: isAutoDetect
+          ? `Testing all models (${useParallel ? 'parallel - faster' : 'sequential - slower'})`
+          : `Testing ${AVAILABLE_MODELS.find(m => m.key === selectedModel)?.label} - fast`,
+        duration: 5000,
       });
-    } finally {
-      setIsAnalyzing(false);
+
+      try {
+        // Create FormData to send the DICOM file
+        const formData = new FormData();
+        formData.append('dicom', dicomFile);
+
+        // Add model selection if specific model chosen
+        if (!isAutoDetect) {
+          const modelId = `mc_chestradiography_${selectedModel}:v1.20250828`;
+          formData.append('model_id', modelId);
+        } else if (useParallel) {
+          // Use parallel execution for auto-detect
+          formData.append('parallel', 'true');
+        }
+
+        // Call the API
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+        const response = await fetch(`${apiUrl}/api/analyze`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          setAiResults(data);
+
+          // Generate heatmap regions with explanations based on AI results
+          const regions = generateRegionsFromAIResponse(data);
+          setHeatmapRegions(regions);
+
+          const score = data.results.response.score;
+          const modelId = data.model_id || data.results?.response?.model || "";
+          const pathologyMatch = modelId.match(/chestradiography_([a-z_]+)/i);
+          const pathologyName = pathologyMatch
+            ? PATHOLOGY_INFO[pathologyMatch[1].toLowerCase()]?.fullName || "Finding"
+            : "Finding";
+
+          toast.success("AI Analysis Complete", {
+            description: `${pathologyName} detected - Confidence: ${(score * 100).toFixed(1)}%`,
+          });
+        } else {
+          toast.error("Analysis failed", {
+            description: data.error || "Unknown error",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to analyze:", error);
+        toast.error("Failed to connect to AI service", {
+          description: "Enable Demo Mode to try with representative data, or ensure the API server is running",
+        });
+      } finally {
+        setIsAnalyzing(false);
+      }
     }
   };
 
@@ -437,6 +494,39 @@ export const Demo = () => {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Toggle between viewing modes and see how consensus highlighting works.
           </p>
+
+          {/* Demo Mode Toggle */}
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <Button
+              variant={demoMode ? "default" : "outline"}
+              size="lg"
+              onClick={() => setDemoMode(!demoMode)}
+              className={demoMode
+                ? "bg-amber-500 hover:bg-amber-600 text-white shadow-lg"
+                : "border-2 border-amber-500/50 hover:border-amber-500 hover:bg-amber-500/10 shadow-md"
+              }
+            >
+              {demoMode ? (
+                <>
+                  <CheckCircle2 className="h-5 w-5 mr-2" />
+                  Demo Mode Active
+                </>
+              ) : (
+                "Enable Demo Mode"
+              )}
+            </Button>
+            <div className="text-center max-w-md">
+              {demoMode ? (
+                <p className="text-xs text-muted-foreground">
+                  Using representative AI data for demonstration
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Click to try the demo with sample AI analysis (no backend required)
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="bg-card rounded-xl border border-border shadow-elegant overflow-hidden animate-scale-in">
@@ -444,8 +534,12 @@ export const Demo = () => {
             {/* Demo Controls */}
             <div className="bg-muted px-6 py-4 border-b border-border flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <Badge variant="secondary">Sample Study: DEMO-CT-001</Badge>
-                <span className="text-sm text-muted-foreground">Chest CT • Axial view</span>
+                {demoMode && (
+                  <Badge variant="secondary" className="bg-amber-500/20 text-amber-700 dark:text-amber-400">
+                    Demo - Representative Data
+                  </Badge>
+                )}
+                <span className="text-sm text-muted-foreground">Chest X-ray • Frontal view</span>
               </div>
               
               <TabsList>
@@ -783,7 +877,7 @@ export const Demo = () => {
                           </li>
                         )}
                         {annotations.length > consensusRegions.length && (
-                          <li className="text-destructive">
+                          <li className="text-blue-600 dark:text-blue-400">
                             • {annotations.length - consensusRegions.length} clinician annotation(s) not matched by AI - review recommended
                           </li>
                         )}
@@ -808,15 +902,15 @@ export const Demo = () => {
         {/* Legend */}
         <div className="mt-8 flex flex-wrap justify-center gap-6 text-sm animate-fade-in">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded border-2 border-destructive" />
+            <div className="w-4 h-4 rounded-full bg-blue-500 border-2 border-white" />
             <span className="text-muted-foreground">Clinician Annotation</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded border-2 border-accent" />
+            <div className="w-4 h-4 rounded-full bg-orange-500 border-2 border-white" />
             <span className="text-muted-foreground">AI Finding</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-success/30 border-2 border-success" />
+            <div className="w-4 h-4 rounded-full bg-green-500/40 border-2 border-green-500" />
             <span className="text-muted-foreground">Consensus Region</span>
           </div>
         </div>

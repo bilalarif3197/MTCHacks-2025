@@ -9,6 +9,21 @@ This project combines:
 - **AI Backend**: Flask API server with HOPPR AI integration for chest radiography analysis
 - **Features**: Side-by-side comparison, consensus highlighting, combined overlay, and multi-model AI analysis
 
+### Demo Mode
+
+The application includes an optional **demo mode** toggle that displays representative AI data without requiring backend API infrastructure. When enabled, demo mode allows you to:
+- Explore the UI/UX design and interactive features
+- See how the annotation tools work
+- Experience the side-by-side and combined overlay views
+- Understand the consensus highlighting concept
+
+**How to use:**
+1. Click "Enable Demo Mode" button at the top of the demo section
+2. Load a DICOM image (or use the sample)
+3. Click "Display AI Insights" to see mock AI analysis with realistic confidence scores
+
+When demo mode is disabled, the app attempts to connect to the real HOPPR AI backend. For full AI integration, follow the installation steps below.
+
 ## Technologies Used
 
 ### Frontend

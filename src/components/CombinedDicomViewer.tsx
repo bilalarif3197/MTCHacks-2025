@@ -182,32 +182,43 @@ export const CombinedDicomViewer = ({
       });
     }
 
-    // Draw clinician annotations (red dots)
-    clinicianAnnotations.forEach((annotation) => {
+    // Draw clinician annotations (blue numbered markers for clear distinction)
+    clinicianAnnotations.forEach((annotation, index) => {
       const x = annotation.x * canvas.width;
       const y = annotation.y * canvas.height;
 
-      // Draw pin/marker
-      ctx.fillStyle = annotation.color || "rgba(220, 38, 38, 0.9)";
+      // Draw pin/marker with larger size for better visibility
+      ctx.fillStyle = annotation.color || "rgba(59, 130, 246, 1)";
       ctx.beginPath();
-      ctx.arc(x, y, 6, 0, 2 * Math.PI);
+      ctx.arc(x, y, 12, 0, 2 * Math.PI);
       ctx.fill();
 
-      // Draw white border
+      // Draw white border for contrast
       ctx.strokeStyle = "white";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.stroke();
+
+      // Draw annotation number in the center
+      ctx.fillStyle = "white";
+      ctx.font = "bold 13px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText((index + 1).toString(), x, y);
 
       // Draw comment indicator if there's a comment
       if (annotation.comment) {
-        ctx.fillStyle = "rgba(220, 38, 38, 0.9)";
+        ctx.fillStyle = annotation.color || "rgba(59, 130, 246, 1)";
         ctx.beginPath();
-        ctx.arc(x + 10, y - 10, 8, 0, 2 * Math.PI);
+        ctx.arc(x + 16, y - 16, 8, 0, 2 * Math.PI);
         ctx.fill();
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.stroke();
         ctx.fillStyle = "white";
         ctx.font = "bold 10px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("i", x + 10, y - 7);
+        ctx.textBaseline = "middle";
+        ctx.fillText("i", x + 16, y - 16);
       }
     });
   }, [aiRegions, clinicianAnnotations, showConsensus, consensusRegions]);
