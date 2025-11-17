@@ -32,7 +32,6 @@ export const Navigation = () => {
     { label: "Safety", to: "safety" },
     { label: "Integrations", to: "integrations" },
     { label: "FAQ", to: "faq" },
-    { label: "Contact", to: "contact" },
   ];
 
   return (
@@ -79,13 +78,8 @@ export const Navigation = () => {
               {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
             <Link to="demo" spy smooth offset={-80} duration={500}>
-              <Button variant="outline" size="sm">
-                Try the Demo
-              </Button>
-            </Link>
-            <Link to="contact" spy smooth offset={-80} duration={500}>
               <Button variant="hero" size="sm">
-                Request a Pilot
+                Try the Demo
               </Button>
             </Link>
           </div>
@@ -131,13 +125,8 @@ export const Navigation = () => {
               ))}
               <div className="flex flex-col gap-2 pt-2">
                 <Link to="demo" spy smooth offset={-80} duration={500} onClick={() => setIsMenuOpen(false)}>
-                  <Button variant="outline" size="sm" className="w-full">
-                    Try the Demo
-                  </Button>
-                </Link>
-                <Link to="contact" spy smooth offset={-80} duration={500} onClick={() => setIsMenuOpen(false)}>
                   <Button variant="hero" size="sm" className="w-full">
-                    Request a Pilot
+                    Try the Demo
                   </Button>
                 </Link>
               </div>

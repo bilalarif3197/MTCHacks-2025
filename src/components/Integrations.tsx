@@ -1,4 +1,4 @@
-import { Server, Database, Send, Webhook } from "lucide-react";
+import { Server } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export const Integrations = () => {
@@ -16,9 +16,9 @@ export const Integrations = () => {
       <div className="container mx-auto max-w-7xl">
         <div className="text-center mb-16 animate-fade-in">
           <span className="text-sm font-semibold text-accent uppercase tracking-wider">Integrations</span>
-          <h2 className="text-4xl font-bold text-foreground mt-2 mb-4">Designed to Fit Your Stack</h2>
+          <h2 className="text-4xl font-bold text-foreground mt-2 mb-4">AI-Powered Analysis</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Minimal IT lift. Works with existing PACS/RIS infrastructure and modern healthcare APIs.
+            Built on HOPPR AI for accurate chest radiography analysis across 13+ pathology models.
           </p>
         </div>
 

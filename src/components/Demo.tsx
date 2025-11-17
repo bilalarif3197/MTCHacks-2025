@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Download, Send, CheckCircle2, Layers, Upload } from "lucide-react";
+import { CheckCircle2, Layers, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { DicomViewer } from "@/components/DicomViewer";
 import { DicomViewerWithOverlay, type HeatmapRegion } from "@/components/DicomViewerWithOverlay";
@@ -257,18 +257,6 @@ export const Demo = () => {
   const [selectedModel, setSelectedModel] = useState<string>('auto');
   const [useParallel, setUseParallel] = useState<boolean>(true);
   const [consensusRegions, setConsensusRegions] = useState<ConsensusRegion[]>([]);
-
-  const handleDownload = () => {
-    toast.success("Report downloaded • PDF generated", {
-      description: "DEMO-CT-001_report.pdf",
-    });
-  };
-
-  const handleSend = () => {
-    toast.success("Report sent to PACS endpoint", {
-      description: "14:03 • DEMO-CT-001",
-    });
-  };
 
   const toggleConsensus = () => {
     setShowConsensus(!showConsensus);
@@ -815,24 +803,6 @@ export const Demo = () => {
               </TabsContent>
             </div>
           </Tabs>
-
-          {/* Export Actions */}
-          <div className="bg-muted px-6 py-4 border-t border-border flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span>Analysis complete</span>
-            </div>
-            <div className="flex gap-3">
-              <Button variant="outline" size="sm" onClick={handleDownload}>
-                <Download className="h-4 w-4 mr-2" />
-                Download
-              </Button>
-              <Button variant="medical" size="sm" onClick={handleSend}>
-                <Send className="h-4 w-4 mr-2" />
-                Send to PACS
-              </Button>
-            </div>
-          </div>
         </div>
 
         {/* Legend */}

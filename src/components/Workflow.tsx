@@ -9,9 +9,9 @@ export const Workflow = () => {
       number: "01",
       icon: Upload,
       image: modalitiesIcon,
-      title: "Upload or DICOM Pull",
+      title: "Upload DICOM",
       description: "Accepts common modalities: X-ray, CT, MRI. Demo uses de-identified samples for immediate testing.",
-      details: ["Drag & drop files", "PACS integration", "Sample gallery included"],
+      details: ["Drag & drop files", "Multiple formats supported", "Sample gallery included"],
     },
     {
       number: "02",
@@ -25,9 +25,9 @@ export const Workflow = () => {
       number: "03",
       icon: Download,
       image: consensusIcon,
-      title: "Combine & Export",
-      description: "Toggle Combined Overlay to see mutual agreements highlighted. Export as PDF, DICOM SR, or send to PACS.",
-      details: ["Consensus highlighting", "One-click export", "PACS/RIS compatible"],
+      title: "View Consensus",
+      description: "Toggle Combined Overlay to see mutual agreements highlighted between clinician annotations and AI findings.",
+      details: ["Consensus highlighting", "Visual agreement indicators", "Side-by-side comparison"],
     },
   ];
 

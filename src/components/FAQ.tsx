@@ -13,11 +13,11 @@ export const FAQ = () => {
     },
     {
       question: "What image types are supported?",
-      answer: "The demo supports de-identified X-ray, CT, and MRI studies. Production versions would support broader DICOM modalities and integrate directly with PACS systems.",
+      answer: "The demo supports de-identified X-ray, CT, and MRI studies in DICOM format. The platform is optimized for chest radiography analysis.",
     },
     {
       question: "How are annotations handled?",
-      answer: "Clinician annotations are stored on a separate layer from AI findings. You can view them side-by-side, merge them via Combined Overlay, or keep them separate. All annotations are versioned and auditable.",
+      answer: "Clinician annotations are stored on a separate layer from AI findings. You can view them side-by-side, merge them via Combined Overlay, or keep them separate for independent review.",
     },
     {
       question: "What is Consensus Highlighting?",

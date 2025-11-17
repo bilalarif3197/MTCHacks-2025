@@ -1,4 +1,4 @@
-import { ShieldCheck, UserCheck, Lock, AlertTriangle } from "lucide-react";
+import { UserCheck, Lock, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const Safety = () => {
@@ -10,13 +10,8 @@ export const Safety = () => {
     },
     {
       icon: Lock,
-      title: "PHI Handling",
-      description: "Encryption in transit, on-device masking option. Demo uses public, de-identified datasets only.",
-    },
-    {
-      icon: ShieldCheck,
-      title: "Audit & Compliance",
-      description: "Full audit trail of all actions. Designed with HIPAA-compliant architecture for production deployment.",
+      title: "De-Identified Data",
+      description: "Demo uses public, de-identified datasets only. No patient health information (PHI) is processed.",
     },
   ];
 

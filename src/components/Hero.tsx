@@ -22,8 +22,8 @@ export const Hero = () => {
                 </span>
               </h1>
               <p className="text-xl text-muted-foreground leading-relaxed max-w-xl">
-                Upload a case, annotate as you normally do, and compare with AI on a clean, side-by-side canvas. 
-                Combine views to highlight agreement, export in one click.
+                Upload a case, annotate as you normally do, and compare with AI on a clean, side-by-side canvas.
+                Combine views to highlight agreement.
               </p>
             </div>
 
@@ -40,7 +40,7 @@ export const Hero = () => {
             <div className="flex flex-wrap gap-3 pt-4">
               <Badge variant="secondary" className="px-3 py-1.5 gap-2">
                 <Shield className="h-3.5 w-3.5" />
-                HIPAA Ready*
+                Research Prototype
               </Badge>
               <Badge variant="secondary" className="px-3 py-1.5 gap-2">
                 <Globe className="h-3.5 w-3.5" />
@@ -50,7 +50,7 @@ export const Hero = () => {
 
             {/* Disclaimer */}
             <p className="text-xs text-muted-foreground pt-2 max-w-xl">
-              *Hackathon prototype. Not for primary diagnosis. Designed with HIPAA-compliant architecture for future deployment.
+              Hackathon prototype for research and evaluation only. Not approved for clinical diagnosis.
             </p>
           </div>
 
