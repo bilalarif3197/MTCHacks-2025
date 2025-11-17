@@ -522,7 +522,7 @@ export const Demo = () => {
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Click to try the demo with sample AI analysis (no backend required)
+                  Try the demo with sample AI analysis if the API is unavailable
                 </p>
               )}
             </div>
