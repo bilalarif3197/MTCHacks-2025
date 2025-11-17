@@ -184,6 +184,17 @@ python main.py
 |----------|-------------|----------|
 | `HOPPR_API_KEY` | Your HOPPR AI API key | Yes |
 
+## Deployment
+
+For detailed deployment instructions, see **[DEPLOYMENT.md](DEPLOYMENT.md)**.
+
+**Quick Summary**:
+- **Frontend**: Deploy to Vercel (free, instant)
+- **Backend**: Deploy to Render.com (free with cold starts)
+- **Demo Mode**: Enable by default for instant demos without backend
+
+Both platforms offer generous free tiers perfect for portfolio/resume projects.
+
 ## Important Disclaimer
 
 **Synapse is a hackathon prototype** intended for research and educational purposes only. This is **not a medical device** and is **not approved for primary diagnostic use**. All images shown are de-identified. Clinical decisions must be made by licensed healthcare professionals. The developers assume no liability for clinical outcomes.
