@@ -496,33 +496,42 @@ export const Demo = () => {
           </p>
 
           {/* Demo Mode Toggle */}
-          <div className="mt-6 flex flex-col items-center gap-3">
+          <div className="mt-8 flex flex-col items-center gap-4">
+            {!demoMode && (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-200 dark:border-amber-800 rounded-lg p-4 max-w-xl">
+                <p className="text-sm font-semibold text-amber-900 dark:text-amber-100 text-center">
+                  💡 API not available? <span className="text-amber-700 dark:text-amber-400">Enable Demo Mode</span> to try the demo with sample AI analysis!
+                </p>
+              </div>
+            )}
             <Button
               variant={demoMode ? "default" : "outline"}
               size="lg"
               onClick={() => setDemoMode(!demoMode)}
               className={demoMode
-                ? "bg-amber-500 hover:bg-amber-600 text-white shadow-lg"
-                : "border-2 border-amber-500/50 hover:border-amber-500 hover:bg-amber-500/10 shadow-md"
+                ? "bg-amber-500 hover:bg-amber-600 text-white shadow-lg text-lg px-8 py-6 h-auto"
+                : "border-3 border-amber-500 hover:border-amber-600 hover:bg-amber-500/20 shadow-lg text-lg px-8 py-6 h-auto font-bold text-amber-600 dark:text-amber-400"
               }
             >
               {demoMode ? (
                 <>
-                  <CheckCircle2 className="h-5 w-5 mr-2" />
+                  <CheckCircle2 className="h-6 w-6 mr-2" />
                   Demo Mode Active
                 </>
               ) : (
-                "Enable Demo Mode"
+                <>
+                  Click Here to Enable Demo Mode
+                </>
               )}
             </Button>
             <div className="text-center max-w-md">
               {demoMode ? (
-                <p className="text-xs text-muted-foreground">
-                  Using representative AI data for demonstration
+                <p className="text-sm text-muted-foreground font-medium">
+                  ✓ Using representative AI data for demonstration
                 </p>
               ) : (
-                <p className="text-xs text-muted-foreground">
-                  Try the demo with sample AI analysis if the API is unavailable
+                <p className="text-sm text-muted-foreground">
+                  Demo mode lets you explore the interface with pre-loaded AI analysis results
                 </p>
               )}
             </div>
